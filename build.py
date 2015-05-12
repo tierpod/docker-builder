@@ -191,6 +191,7 @@ def package(args):
         --buildroot=/tmp/build {2}'.format(download_cmd, release, SPEC)
     docker_cmd = 'docker run --rm -v $(pwd)/rpmbuild/:/home/builder/rpmbuild \
         -t {image} /bin/bash -c "{shell_cmd}"'.format(**locals())
+    print '===> Run compilation command: {0}'.format(docker_cmd)
     rc = subprocess.call(docker_cmd, shell=True)
     if rc != 0: exit(2)
 
