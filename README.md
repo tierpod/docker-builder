@@ -1,28 +1,91 @@
 # Компиляция rpm пакета внутри docker контейнера
 
 __Прототип__, попытка сделать скрипт для компиляции rpm пакeтов внутри docker
-контейнера. Можно использовать как пример для опакечивания программ.
+контейнера.
 
-## build.py
 
-Основной скрипт запуска, используется для управления всем.
+## Зависимости
 
-Уважает переменные окружения:
+* python
+* python-docopt
+* docker
+
+
+## Установка
+
+Исполняемый docker-rpmbuilder.py положить куда-нибудь в PATH, либо запускать из
+любой директории. В директорию проекта, который нужно скомпилировать, положить:
+
+* docker-rpmbuilder.ini - файл настроек,
+* ${workdir}/Dockerfile.template - шаблон для генерации Dockerfile,
+* ${workdir}/rpmbuild/SPECS/file.spec - spec-файл,
+* ${workdir}/rpmbuild/SOURCES/ - дополнительные файлы, патчи и прочее.
+
+
+## Использование
+
+```
+/usr/local/bin/docker-rpmbuilder.py
+
+project/
+├── docker-rpmbuilder.ini
+├── packaging
+│   ├── Dockerfile.template
+│   └── rpmbuild
+│       ├── SOURCES
+│       └── SPECS
+│           └── default.spec
+└── README.md
+
+
+Usage:
+  docker-rpmbuilder.py [-c <config>] [-d] 
+                       (image | package [-r] | shell | generate | rpmbuild | clear)
+
+Commands:
+  image                           Build docker image
+  package [-r, --remove]          Build rpm package
+  shell                           Run interactive shell inside docker container
+  generate                        Generate Dockerfile from template
+  rpmbuild                        Prepare rpmbuild directory tree
+  clear                           Clear temporary files
+
+Options:
+  -c <config>, --config <config>  Config file [default: docker-rpmbuilder.ini]
+  -r, --remove                    Clear temporary files before building package
+  -d, --debug                     Print more debug messages
+  -h, --help                      Show help message
+```
+
+Чтобы собрать из этого репозтория пакет, нужно на хосте с docker-ом (либо 
+jenkins-slave с docker-ом):
+
+```
+# build
+cd project/
+docker-rpmbuilder.py image
+docker-rpmbuilder.py package
+```
+
+
+## docker-rpmbuilder.py
+
+Считывает переменные окружения:
 
 * BUILD_NUMBER - добавляет номер сборки в версию пакета, удобно в связке с
-  jenkins
+  jenkins.
 
-## config.ini
+## docker-rpmbuilder.ini
 
-Изменяемые опции, используются в build.py:
-
-* image_prefix [builder-] - префикс для имени image-а, само имя генерируется 
-  из название spec-файла (отбрасывается расширение)
-* dockerfile [Dockerfile.template] - файл Dockerfile.template
-* spec [rpmbuild/SPECS/squidanalyzer.spec] - файл spec
-* prepare_cmd [None] - команда, выполняется на хосте до начала сборки. Можно,
-  например, создать tar-архив из исходников, для которых нет архива (а имя этого
-  tar-архива прописать в spec-файле).
+* workdir: рабочая директория, в которой будет происходить сборка (содержит
+  Dockerfile.template, rpmbuild tree),
+* git: добавлять или нет в release версию git commit,
+* imagename: имя docker image,
+* prepare_cmd: команда, исполняемая ДО процесса сборки,
+* download: использовать или нет spectool для автоматического скачивания 
+  исходного кода,
+* dockerfile: имя Dockerfile.template-а внутри workdir
+* spec - имя spec-файла внутри workdir/rpmbuild/SPECS
 
 ## Dockerfile.template
 
@@ -32,38 +95,3 @@ __Прототип__, попытка сделать скрипт для комп
   внутри контейнера создать пользователя без прав рута с правильными UID и GID
   для доступа к volume
 
-## Использование
-
-```
-usage: build.py [-h] {image,package,shell,generate,clear} ...
-
-positional arguments:
-  {image,package,shell,generate,clear}
-    image               Build docker image
-    package             Build rpm package inside docker container
-    shell               Run docker interactive shell
-    generate            Generate and write Dockerfile to disk
-    clear               Remove temporary files
-
-optional arguments:
-  -h, --help            show this help message and exit
-
-
-image|generate:
-  -t TEMPLATE, --template TEMPLATE
-                          Path to Dockerfile.template
-package:
-  -g, --git         Append current git commit to RELEASE
-  -n, --nodownload  Do not download source with spectool (need source archive
-                    inside SOURCES)
-```
-
-Чтобы собрать из этого репозтория пакет, нужно на хосте с docker-ом (либо 
-jenkins-slave с docker-ом):
-
-```
-# build
-cd example/
-./build.py image
-./build.py package
-```
