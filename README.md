@@ -7,7 +7,6 @@ __Прототип__, попытка сделать скрипт для комп
 ## Зависимости
 
 * python
-* python-docopt
 * docker
 
 
@@ -38,23 +37,27 @@ project/
 └── README.md
 
 
-Usage:
-  docker-rpmbuilder.py [-c <config>] [-d] 
-                       (image | package [-r] | shell | generate | rpmbuild | clear)
+usage: docker-rpmbuilder.py [-h] [-c CONFIG] [-d] [-s SECTION]
+                            {image,package,shell,generate,clear,show} ...
 
-Commands:
-  image                           Build docker image
-  package [-r, --remove]          Build rpm package
-  shell                           Run interactive shell inside docker container
-  generate                        Generate Dockerfile from template
-  rpmbuild                        Prepare rpmbuild directory tree
-  clear                           Clear temporary files
+Build rpm inside docker image
 
-Options:
-  -c <config>, --config <config>  Config file [default: docker-rpmbuilder.ini]
-  -r, --remove                    Clear temporary files before building package
-  -d, --debug                     Print more debug messages
-  -h, --help                      Show help message
+positional arguments:
+  {image,package,shell,generate,clear,show}
+    image               Build docker image
+    package             Build rpm package inside docker container
+    shell               Run interactive shell inside docker container
+    generate            Generate and write Dockerfile to disk
+    clear               Clear temporary files
+    show                Show config file and exit
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Config file [default: docker-rpmbuilder.ini]
+  -d, --debug           Print more debug messages
+  -s SECTION, --section SECTION
+                        Switch between config sections [default: main]
 ```
 
 Чтобы собрать из этого репозтория пакет, нужно на хосте с docker-ом (либо 

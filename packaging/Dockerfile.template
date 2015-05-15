@@ -4,9 +4,10 @@ MAINTAINER Pavel Podkorytov <pod.pavel@gmail.com>
 ENV USERID={USERID}
 ENV GROUPID={GROUPID}
 
-# Install dependencies
+# Install main dependencies
 RUN yum install -y epel-release rpmdevtools make yum-utils && \
     yum clean all
+# Install more dependencies for project here
 
 # Create builder group and user
 RUN groupadd -g $GROUPID builder && \
