@@ -36,10 +36,6 @@ project/
 │           └── default.spec
 └── README.md
 
-
-usage: docker-rpmbuilder.py [-h] [-c CONFIG] [-d] [-s SECTION]
-                            {image,package,shell,generate,clear,show} ...
-
 Build rpm inside docker image
 
 positional arguments:
@@ -57,7 +53,7 @@ optional arguments:
                         Config file [default: docker-rpmbuilder.ini]
   -d, --debug           Print more debug messages
   -s SECTION, --section SECTION
-                        Switch between config sections [default: main]
+                        Switch between config sections [default: default]
 ```
 
 Чтобы собрать из этого репозтория пакет, нужно на хосте с docker-ом (либо 

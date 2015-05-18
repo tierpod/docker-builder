@@ -17,8 +17,8 @@ def parse_args():
         help='Config file [default: docker-rpmbuilder.ini]')
     parser.add_argument('-d', '--debug', action='store_true',
         help='Print more debug messages')
-    parser.add_argument('-s', '--section', default='main',
-        help='Switch between config sections [default: main]')
+    parser.add_argument('-s', '--section', default='default',
+        help='Switch between config sections [default: default]')
 
     subparsers = parser.add_subparsers()
 
@@ -131,7 +131,7 @@ def change_directory(workdir):
     os.chdir(workdir)
 
 def load_config(filename, section):
-    """Verify and print config.ini"""
+    """Load and verify docker-rpmbuilder.ini"""
     if not os.path.exists(filename):
         print 'ERR> "{0}" does not exist'.format(filename)
         sys.exit(3)
