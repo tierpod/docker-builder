@@ -1,0 +1,4 @@
+#!/bin/sh -x
+
+spectool -g -R SPECS/{spec}
+rpmbuild --define 'release {release}' -ba --buildroot=/tmp/build SPECS/{spec}

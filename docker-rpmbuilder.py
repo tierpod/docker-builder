@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.1'
-
+import ConfigParser
 import argparse
 import os
-import subprocess
-import ConfigParser
-import sys
 import shutil
+import subprocess
+import sys
+
+__version__ = '0.1'
 
 # main
 def parse_args():
@@ -41,7 +41,7 @@ def parse_args():
     # generate
     parser_generate = subparsers.add_parser('generate',
         help='Generate and write Dockerfile to disk')
-    parser_generate.set_defaults(func=generate_dockerfile)
+    parser_generate.set_defaults(func=generate)
 
     # clear
     parser_clear = subparsers.add_parser('clear', help='Clear temporary files')
@@ -56,12 +56,12 @@ def parse_args():
 
 ## helper functions
 def get_userinfo():
-    """Get current user UID and GID"""
+    """Return {'userid': uid, 'groupid': gid}"""
     uid = os.getuid()
     gid = os.getgid()
     return {
-        'USERID': uid,
-        'GROUPID': gid,
+        'userid': uid,
+        'groupid': gid,
     }
 
 def generate_dockerfile(template):
@@ -75,14 +75,33 @@ def generate_dockerfile(template):
     with open(template, 'r') as f:
         content = f.read()
 
-    print '     USERID -> {USERID}, GROUPID -> {GROUPID}'.format(**userinfo)
+    print '     userid -> {userid}, groupid -> {groupid}'.format(**userinfo)
     _content = content.format(**userinfo)
 
     print _content
 
-    """Write Dockerfile to disk"""
     print '===> Write Dockerfile do disk'
     with open('Dockerfile', 'w') as f:
+        f.write(_content)
+
+    return True
+
+def generate_entrypoint(entrypoint, spec, release):
+    """Generate entrypoint.sh from template"""
+    print '===> Generate entrypoint from "{entrypoint}"'.format(**locals())
+    if not os.path.exists(entrypoint):
+        print 'ERR> "{0}" does not exist'.format(**locals())
+        sys.exit(1)
+
+    with open(entrypoint, 'r') as f:
+        content = f.read()
+
+    print '     spec -> {spec}, release -> {release}'.format(**locals())
+    _content = content.format(**locals())
+    print _content
+
+    print '===> Write entrypoint do disk'
+    with open('entrypoint.sh', 'w') as f:
         f.write(_content)
 
     return True
@@ -109,8 +128,8 @@ def generate_release(git):
     else:
         return buildnumber
 
-def generate_rpmbuild():
-    """Generate minimal rpmbuild directory tree"""
+def create_rpmbuild():
+    """Create minimal rpmbuild directory tree"""
     tree = ['rpmbuild/', 'rpmbuild/SOURCES/', 'rpmbuild/SPECS/']
     print '===> Create rpmbuild directory tree: {0}'.format(', '.join(tree))
     for directory in tree:
@@ -141,9 +160,9 @@ def load_config(filename, section):
         'dockerfile' : 'Dockerfile.template',
         'spec': 'default.spec',
         'prepare_cmd': None,
-        'download': False,
         'git': False,
         'workdir': 'packaging',
+        'entrypoint': 'entrypoint.sh.template'
     }
     config_file = ConfigParser.SafeConfigParser(default_config)
     config_file.read(filename)
@@ -154,9 +173,9 @@ def load_config(filename, section):
         config['dockerfile'] = config_file.get(section, 'dockerfile')
         config['spec'] = config_file.get(section, 'spec')
         config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
-        config['download'] = config_file.getboolean(section, 'download')
         config['git'] = config_file.getboolean(section, 'git')
         config['workdir'] = config_file.get(section, 'workdir')
+        config['entrypoint'] = config_file.get(section, 'entrypoint')
     except ConfigParser.NoSectionError:
         print 'ERR> Failed to parse config from "{0}": section "{1}" not found'.format(filename, section)
         sys.exit(3)
@@ -167,7 +186,7 @@ def load_config(filename, section):
 ## parser main functions
 def clear(args, config):
     """Remove temporary files"""
-    tmps = ['Dockerfile', 'tmp/']
+    tmps = ['Dockerfile', 'entrypoint.sh', 'tmp/']
     print '===> Remove temporary file/directory: {}'.format(', '.join(tmps))
     for tmp in tmps:
         if os.path.exists(tmp):
@@ -178,8 +197,8 @@ def shell(args, config):
     """Run docker interactive shell"""
     print '===> Run docker interactive shell from image: {0}'.format(config['imagename'])
     create_tmpdir()
-    rc = subprocess.call('docker run --rm -it \
-        -v $(pwd)/tmp/:/home/builder/rpmbuild {0} /bin/bash'.format(config['imagename']),
+    rc = subprocess.call('docker run --rm -it --entrypoint=/bin/bash \
+        -v $(pwd)/tmp/:/home/builder/rpmbuild {0}'.format(config['imagename']),
         shell=True)
     if rc != 0: exit(rc)
 
@@ -198,13 +217,8 @@ def package(args, config):
         rc = subprocess.call(config['prepare_cmd'], shell=True)
         if rc != 0: exit(rc)
 
-    download_cmd = ''
-    if config['download']:
-        download_cmd = 'spectool -g -R SPECS/{0};'.format(config['spec'])
-    shell_cmd = '{0} rpmbuild --define \'release {1}\' -ba \
-        --buildroot=/tmp/build SPECS/{2}'.format(download_cmd, release, config['spec'])
     docker_cmd = 'docker run --rm -v $(pwd)/tmp/:/home/builder/rpmbuild \
-        -t {0} /bin/bash -c "{1}"'.format(config['imagename'], shell_cmd)
+        -t {0}'.format(config['imagename'])
 
     print '===> Run compilation command: {0}'.format(docker_cmd)
     rc = subprocess.call(docker_cmd, shell=True)
@@ -213,7 +227,7 @@ def package(args, config):
 def image(args, config):
     """Build docker image"""
     buildnumber = generate_buildnumber()
-    generate_dockerfile(config['dockerfile'])
+    generate(args, config)
     print '===> Build docker image {0}:{1}'.format(config['imagename'], buildnumber)
     rc = subprocess.call('docker build -t {0} .'.format(config['imagename']), shell=True)
     if rc != 0: exit(rc)
@@ -225,6 +239,11 @@ def show(args, config):
     print '===> Load {0}'.format(args.config)
     for k, v in config.items():
         print '     {0:12} -> {1}'.format(k, v)
+
+def generate(args, config):
+    release = generate_release(config['git'])
+    generate_dockerfile(config['dockerfile'])
+    generate_entrypoint(config['entrypoint'], config['spec'], release)
 
 
 ### main
