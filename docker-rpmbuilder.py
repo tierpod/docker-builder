@@ -41,7 +41,7 @@ def parse_args():
     # generate
     parser_generate = subparsers.add_parser('generate',
         help='Generate and write Dockerfile to disk')
-    parser_generate.set_defaults(func=generate_dockerfile)
+    parser_generate.set_defaults(func=generate)
 
     # clear
     parser_clear = subparsers.add_parser('clear', help='Clear temporary files')
@@ -225,6 +225,9 @@ def show(args, config):
     print '===> Load {0}'.format(args.config)
     for k, v in config.items():
         print '     {0:12} -> {1}'.format(k, v)
+
+def generate(args, config):
+    generate_dockerfile(config['dockerfile'])
 
 
 ### main
