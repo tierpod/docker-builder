@@ -12,7 +12,7 @@ __Прототип__, попытка сделать скрипт для комп
 
 ## Установка
 
-Исполняемый docker-rpmbuilder.py положить куда-нибудь в PATH, либо запускать из
+Исполняемый bin/docker-rpmbuilder.py положить куда-нибудь в PATH, либо запускать из
 любой директории. В директорию проекта, который нужно скомпилировать, положить:
 
 * docker-rpmbuilder.ini - файл настроек,
@@ -24,18 +24,16 @@ __Прототип__, попытка сделать скрипт для комп
 ## Использование
 
 ```
-/usr/local/bin/docker-rpmbuilder.py
-
-project/
+project
 ├── docker-rpmbuilder.ini
-├── packaging
-│   ├── Dockerfile.template
-│   └── rpmbuild
-│       ├── SOURCES
-│       └── SPECS
-│           └── default.spec
-└── README.md
+└── packaging
+    ├── Dockerfile.template
+    ├── entrypoint.sh.template
+    └── rpmbuild
+        └── SPECS
+            └── default.spec
 
+$ docker-rpmbuilder.py --help
 Build rpm inside docker image
 
 positional arguments:
@@ -43,9 +41,10 @@ positional arguments:
     image               Build docker image
     package             Build rpm package inside docker container
     shell               Run interactive shell inside docker container
-    generate            Generate and write Dockerfile to disk
+    generate            Generate and write files to disk [Dockerfile,
+                        entrypoint.sh]
     clear               Clear temporary files
-    show                Show config file and exit
+    show                Show configuration and exit
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -76,21 +75,41 @@ docker-rpmbuilder.py package
 
 ## docker-rpmbuilder.ini
 
-* workdir: рабочая директория, в которой будет происходить сборка (содержит
-  Dockerfile.template, rpmbuild tree),
-* git: добавлять или нет в release версию git commit,
-* imagename: имя docker image,
-* prepare_cmd: команда, исполняемая ДО процесса сборки,
-* download: использовать или нет spectool для автоматического скачивания 
-  исходного кода,
-* dockerfile: имя Dockerfile.template-а внутри workdir
-* spec - имя spec-файла внутри workdir/rpmbuild/SPECS
+Стандартные параметры:
 
-## Dockerfile.template
+```
+default_config = {
+    # имя шаблона Dockerfile
+    'dockerfile' : 'Dockerfile.template',
+    # имя шаблона entrypoint.sh
+    'entrypoint': 'entrypoint.sh.template',
+    # сгенерировать release из версии git commit?
+    'git': False,
+    # имя docker image-а, в котором будет происходить компиляция
+    'imagename': 'builder-example',
+    # команда для запуска на хосте ДО компиляции
+    'prepare_cmd': None,
+    # имя spec-файла
+    'spec': 'default.spec',
+    # рабочая директория
+    'workdir': 'packaging',
+}
+```
+
+## Шаблоны
+
+### Dockerfile.template
 
 Шаблон для генерации Dockerfile, в процессе generate заменяются:
 
-* {USERID}, {GROUPID} - на UID, GUID текущего пользователя. Необходимо, чтобы
+* {userid}, {groupid} - на uid, gid текущего пользователя. Необходимо, чтобы
   внутри контейнера создать пользователя без прав рута с правильными UID и GID
-  для доступа к volume
+  для доступа к volume.
 
+### entrypoint.sh.template
+
+Шаблон для генирации entrypoint.sh, выполняется внутри контейнера (CMD в Dockerfile).
+
+* {spec} - имя spec-файла, берётся из файла конфигурации,
+* {release} - дополнительное поле, которое может присутсвовать в spec-файле (полезно
+  для добавления версии из гита, или BUILD_NUMBER из jenkins-а).
