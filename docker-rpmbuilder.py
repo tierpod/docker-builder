@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 # main
 def parse_args():
@@ -40,15 +40,17 @@ def parse_args():
 
     # generate
     parser_generate = subparsers.add_parser('generate',
-        help='Generate and write Dockerfile to disk')
+        help='Generate and write files to disk [Dockerfile, entrypoint.sh]')
     parser_generate.set_defaults(func=generate)
 
     # clear
-    parser_clear = subparsers.add_parser('clear', help='Clear temporary files')
+    parser_clear = subparsers.add_parser('clear',
+        help='Clear temporary files')
     parser_clear.set_defaults(func=clear)
 
     # show
-    parser_show = subparsers.add_parser('show', help='Show config file and exit')
+    parser_show = subparsers.add_parser('show',
+        help='Show configuration and exit')
     parser_show.set_defaults(func=show)
 
     return parser.parse_args()
@@ -77,7 +79,6 @@ def generate_dockerfile(template):
 
     print '     userid -> {userid}, groupid -> {groupid}'.format(**userinfo)
     _content = content.format(**userinfo)
-
     print _content
 
     print '===> Write Dockerfile do disk'
@@ -100,7 +101,7 @@ def generate_entrypoint(entrypoint, spec, release):
     _content = content.format(**locals())
     print _content
 
-    print '===> Write entrypoint do disk'
+    print '===> Write entrypoint.sh do disk'
     with open('entrypoint.sh', 'w') as f:
         f.write(_content)
 
@@ -138,8 +139,8 @@ def create_rpmbuild():
             
 def create_tmpdir():
     """Create temporary working directory from rpmbuild"""
-    if not os.path.exists('tmp'):
-        shutil.copytree('rpmbuild', 'tmp')
+    if not os.path.exists('build-env'):
+        shutil.copytree('rpmbuild', 'build-env')
 
 def change_directory(workdir):
     """Change directory to workdir"""
@@ -156,28 +157,28 @@ def load_config(filename, section):
         sys.exit(3)
 
     default_config = {
-        'imagename': 'builder-example',
         'dockerfile' : 'Dockerfile.template',
-        'spec': 'default.spec',
-        'prepare_cmd': None,
+        'entrypoint': 'entrypoint.sh.template',
         'git': False,
+        'imagename': 'builder-example',
+        'prepare_cmd': None,
+        'spec': 'default.spec',
         'workdir': 'packaging',
-        'entrypoint': 'entrypoint.sh.template'
     }
     config_file = ConfigParser.SafeConfigParser(default_config)
     config_file.read(filename)
 
     config = {}
     try:
-        config['imagename'] = config_file.get(section, 'imagename')
         config['dockerfile'] = config_file.get(section, 'dockerfile')
-        config['spec'] = config_file.get(section, 'spec')
-        config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
-        config['git'] = config_file.getboolean(section, 'git')
-        config['workdir'] = config_file.get(section, 'workdir')
         config['entrypoint'] = config_file.get(section, 'entrypoint')
-    except ConfigParser.NoSectionError:
-        print 'ERR> Failed to parse config from "{0}": section "{1}" not found'.format(filename, section)
+        config['git'] = config_file.getboolean(section, 'git')
+        config['imagename'] = config_file.get(section, 'imagename')
+        config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
+        config['spec'] = config_file.get(section, 'spec')
+        config['workdir'] = config_file.get(section, 'workdir')
+    except:
+        print 'ERR> Failed to parse config from "{0}"'.format(filename)
         sys.exit(3)
 
     return config
@@ -186,7 +187,7 @@ def load_config(filename, section):
 ## parser main functions
 def clear(args, config):
     """Remove temporary files"""
-    tmps = ['Dockerfile', 'entrypoint.sh', 'tmp/']
+    tmps = ['Dockerfile', 'entrypoint.sh', 'build-env/']
     print '===> Remove temporary file/directory: {}'.format(', '.join(tmps))
     for tmp in tmps:
         if os.path.exists(tmp):
@@ -198,7 +199,7 @@ def shell(args, config):
     print '===> Run docker interactive shell from image: {0}'.format(config['imagename'])
     create_tmpdir()
     rc = subprocess.call('docker run --rm -it --entrypoint=/bin/bash \
-        -v $(pwd)/tmp/:/home/builder/rpmbuild {0}'.format(config['imagename']),
+        -v $(pwd)/build-env/:/home/builder/rpmbuild {0}'.format(config['imagename']),
         shell=True)
     if rc != 0: exit(rc)
 
@@ -217,10 +218,10 @@ def package(args, config):
         rc = subprocess.call(config['prepare_cmd'], shell=True)
         if rc != 0: exit(rc)
 
-    docker_cmd = 'docker run --rm -v $(pwd)/tmp/:/home/builder/rpmbuild \
+    docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/rpmbuild \
         -t {0}'.format(config['imagename'])
 
-    print '===> Run compilation command: {0}'.format(docker_cmd)
+    print '===> Run container: {0}'.format(docker_cmd)
     rc = subprocess.call(docker_cmd, shell=True)
     if rc != 0: exit(rc)
 
