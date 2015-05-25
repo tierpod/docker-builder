@@ -169,20 +169,20 @@ def load_config(filename, section):
     config_file.read(filename)
 
     config = {}
-    # Get git boolean option
-    try:
-        config['git'] = config_file.getboolean(section, 'git')
-    except ValueError:
-        config['git'] = default_config['git']
-    # Get other string options
-    try:
+    if config_file.has_section(section):
+        # get string options
         config['dockerfile'] = config_file.get(section, 'dockerfile')
         config['entrypoint'] = config_file.get(section, 'entrypoint')
         config['imagename'] = config_file.get(section, 'imagename')
         config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
         config['spec'] = config_file.get(section, 'spec')
         config['workdir'] = config_file.get(section, 'workdir')
-    except ConfigParser.NoSectionError:
+        # get boolean option
+        try:
+            config['git'] = config_file.getboolean(section, 'git')
+        except ValueError:
+            config['git'] = default_config['git']
+    else:
         print 'ERR> Failed to parse config from "{0}": section "{1}" not found'.format(filename, section)
         sys.exit(3)
 
