@@ -1,8 +1,6 @@
 #!/bin/sh -x
 # Workdir: /home/builder/rpmbuild
 
-# create rpmbuild tree
-rpmdev-setuptree
 # Download sources
 spectool -g -R SPECS/{spec}
 # Build rpm package

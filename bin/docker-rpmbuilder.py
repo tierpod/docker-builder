@@ -57,28 +57,28 @@ def parse_args():
 
 
 ## helper functions
-def get_userinfo():
-    """Return {'userid': uid, 'groupid': gid}"""
-    uid = os.getuid()
-    gid = os.getgid()
-    return {
-        'userid': uid,
-        'groupid': gid,
-    }
+def get_userid():
+    """Get current user id"""
+    return os.getuid()
 
-def generate_dockerfile(template):
+def get_usergid():
+    """Get current group id"""
+    return os.getgid()
+
+def generate_dockerfile(template, spec):
     """Generate Dockerfile from template"""
-    print '===> Generate Dockerfile from "{0}"'.format(template)
+    userid = get_userid()
+    groupid = get_usergid()
+    print '===> Generate Dockerfile from "{template}"'.format(**locals())
     if not os.path.exists(template):
-        print 'ERR> "{0}" does not exist'.format(template)
+        print 'ERR> "{template}" does not exist'.format(**locals())
         sys.exit(1)
-    userinfo = get_userinfo()
     content = ''
     with open(template, 'r') as f:
         content = f.read()
 
-    print '     userid -> {userid}, groupid -> {groupid}'.format(**userinfo)
-    _content = content.format(**userinfo)
+    print '     userid -> {userid}, groupid -> {groupid}, spec -> {spec}'.format(**locals())
+    _content = content.format(**locals())
     print _content
 
     print '===> Write Dockerfile do disk'
@@ -87,14 +87,14 @@ def generate_dockerfile(template):
 
     return True
 
-def generate_entrypoint(entrypoint, spec, release):
+def generate_entrypoint(template, spec, release):
     """Generate entrypoint.sh from template"""
-    print '===> Generate entrypoint from "{entrypoint}"'.format(**locals())
-    if not os.path.exists(entrypoint):
+    print '===> Generate entrypoint from "{template}"'.format(**locals())
+    if not os.path.exists(template):
         print 'ERR> "{0}" does not exist'.format(**locals())
         sys.exit(1)
 
-    with open(entrypoint, 'r') as f:
+    with open(template, 'r') as f:
         content = f.read()
 
     print '     spec -> {spec}, release -> {release}'.format(**locals())
@@ -139,8 +139,12 @@ def create_rpmbuild():
             
 def create_tmpdir():
     """Create temporary working directory from rpmbuild"""
+    print '===> Create temporary directory tree inside "build-env"'
     if not os.path.exists('build-env'):
         shutil.copytree('rpmbuild', 'build-env')
+    # Create SOURCES directory for spectool
+    if not os.path.exists('build-env/SOURCES'):
+        os.mkdir('build-env/SOURCES')
 
 def change_directory(workdir):
     """Change directory to workdir"""
@@ -248,7 +252,7 @@ def show(args, config):
 
 def generate(args, config):
     release = generate_release(config['git'])
-    generate_dockerfile(config['dockerfile'])
+    generate_dockerfile(config['dockerfile'], config['spec'])
     generate_entrypoint(config['entrypoint'], config['spec'], release)
 
 
