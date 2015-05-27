@@ -188,6 +188,7 @@ def load_config(filename, section):
             config['git'] = default_config['git']
     else:
         print 'ERR> Failed to parse config from "{0}": section "{1}" not found'.format(filename, section)
+        print ', '.join(config_file.sections())
         sys.exit(3)
 
     return config
