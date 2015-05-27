@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-__version__ = '0.2'
+__version__ = '0.3git'
 
 # main
 def parse_args():
@@ -40,12 +40,12 @@ def parse_args():
 
     # generate
     parser_generate = subparsers.add_parser('generate',
-        help='Generate and write files to disk [Dockerfile, entrypoint.sh]')
+        help='Generate and write Dockerfile files to disk')
     parser_generate.set_defaults(func=generate)
 
     # clear
     parser_clear = subparsers.add_parser('clear',
-        help='Clear temporary files')
+            help='Clear temporary files')
     parser_clear.set_defaults(func=clear)
 
     # show
@@ -71,7 +71,7 @@ def generate_dockerfile(template, spec):
     groupid = get_usergid()
     print '===> Generate Dockerfile from "{template}"'.format(**locals())
     if not os.path.exists(template):
-        print 'ERR> "{template}" does not exist'.format(**locals())
+        print 'Error: "{template}" does not exist'.format(**locals())
         sys.exit(1)
     content = ''
     with open(template, 'r') as f:
@@ -87,37 +87,20 @@ def generate_dockerfile(template, spec):
 
     return True
 
-def generate_entrypoint(template, spec, release):
-    """Generate entrypoint.sh from template"""
-    print '===> Generate entrypoint from "{template}"'.format(**locals())
-    if not os.path.exists(template):
-        print 'ERR> "{0}" does not exist'.format(**locals())
-        sys.exit(1)
-
-    with open(template, 'r') as f:
-        content = f.read()
-
-    print '     spec -> {spec}, release -> {release}'.format(**locals())
-    _content = content.format(**locals())
-    print _content
-
-    print '===> Write entrypoint.sh do disk'
-    with open('entrypoint.sh', 'w') as f:
-        f.write(_content)
-
-    return True
-
 def generate_buildnumber():
     """Get build number from BUILD_NUMBER variable"""
     try:
-        build_number = os.environ['BUILD_NUMBER']
+        return os.environ['BUILD_NUMBER']
     except KeyError:
-        build_number = '0'
-    return build_number
+        return '0'
 
 def generate_commit():
     """Generate short commit version"""
-    commit = subprocess.check_output('git rev-parse HEAD', shell=True)[0:7]
+    try:
+        commit = subprocess.check_output('git rev-parse HEAD', shell=True)[0:7]
+    except:
+        print 'Error: unable to get git commit version'
+        sys.exit(3)
     return commit
 
 def generate_release(git):
@@ -129,14 +112,6 @@ def generate_release(git):
     else:
         return buildnumber
 
-def create_rpmbuild():
-    """Create minimal rpmbuild directory tree"""
-    tree = ['rpmbuild/', 'rpmbuild/SOURCES/', 'rpmbuild/SPECS/']
-    print '===> Create rpmbuild directory tree: {0}'.format(', '.join(tree))
-    for directory in tree:
-        if not os.path.exists(directory):
-            os.mkdir(directory)
-            
 def create_tmpdir():
     """Create temporary working directory from rpmbuild"""
     print '===> Create temporary directory tree inside "build-env"'
@@ -149,7 +124,7 @@ def create_tmpdir():
 def change_directory(workdir):
     """Change directory to workdir"""
     if not os.path.exists(workdir):
-        print 'ERR> "{0}" does not exist'.format(workdir)
+        print 'Error: "{0}" does not exist'.format(workdir)
         sys.exit(3)
     print '===> Change current directory to "{0}"'.format(workdir)
     os.chdir(workdir)
@@ -157,38 +132,38 @@ def change_directory(workdir):
 def load_config(filename, section):
     """Load and verify docker-rpmbuilder.ini"""
     if not os.path.exists(filename):
-        print 'ERR> "{0}" does not exist'.format(filename)
+        print 'Error: "{0}" does not exist'.format(filename)
         sys.exit(3)
 
     default_config = {
-        'dockerfile' : 'Dockerfile.template',
-        'entrypoint': 'entrypoint.sh.template',
         'git': False,
         'imagename': 'builder-example',
         'prepare_cmd': None,
         'spec': 'default.spec',
         'workdir': 'packaging',
+        'dockerfile': 'Dockerfile.template',
+        'entrypoint': 'entrypoint.sh',
     }
     config_file = ConfigParser.SafeConfigParser(default_config)
     config_file.read(filename)
+    print '===> Available sections: {}'.format(', '.join(config_file.sections()))
 
     config = {}
     if config_file.has_section(section):
         # get string options
-        config['dockerfile'] = config_file.get(section, 'dockerfile')
-        config['entrypoint'] = config_file.get(section, 'entrypoint')
         config['imagename'] = config_file.get(section, 'imagename')
         config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
         config['spec'] = config_file.get(section, 'spec')
         config['workdir'] = config_file.get(section, 'workdir')
+        config['dockerfile'] = config_file.get(section, 'dockerfile')
+        config['entrypoint'] = config_file.get(section, 'entrypoint')
         # get boolean option
         try:
             config['git'] = config_file.getboolean(section, 'git')
         except ValueError:
             config['git'] = default_config['git']
     else:
-        print 'ERR> Failed to parse config from "{0}": section "{1}" not found'.format(filename, section)
-        print ', '.join(config_file.sections())
+        print 'Error: Failed to parse config from "{0}": section "{1}" not found'.format(filename, section)
         sys.exit(3)
 
     return config
@@ -197,7 +172,7 @@ def load_config(filename, section):
 ## parser main functions
 def clear(args, config):
     """Remove temporary files"""
-    tmps = ['Dockerfile', 'entrypoint.sh', 'build-env/']
+    tmps = ['Dockerfile', 'build-env/']
     print '===> Remove temporary file/directory: {}'.format(', '.join(tmps))
     for tmp in tmps:
         if os.path.exists(tmp):
@@ -207,10 +182,20 @@ def clear(args, config):
 def shell(args, config):
     """Run docker interactive shell"""
     print '===> Run docker interactive shell from image: {0}'.format(config['imagename'])
+    release = generate_release(config['git'])
     create_tmpdir()
-    rc = subprocess.call('docker run --rm -it --entrypoint=/bin/bash \
-        -v $(pwd)/build-env/:/home/builder/rpmbuild {0}'.format(config['imagename']),
-        shell=True)
+
+    options = {
+        'release': release,
+        'spec': config['spec'],
+        'imagename': config['imagename'],
+    }
+    docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/rpmbuild \
+        --entrypoint=/bin/bash \
+        -e RELEASE={release} -e SPEC={spec} -t {imagename}'.format(**options)
+
+    print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
+    rc = subprocess.call(docker_cmd, shell=True)
     if rc != 0: exit(rc)
 
 def package(args, config):
@@ -228,10 +213,15 @@ def package(args, config):
         rc = subprocess.call(config['prepare_cmd'], shell=True)
         if rc != 0: exit(rc)
 
+    options = {
+        'release': release,
+        'spec': config['spec'],
+        'imagename': config['imagename'],
+    }
     docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/rpmbuild \
-        -t {0}'.format(config['imagename'])
+        -e RELEASE={release} -e SPEC={spec} -t {imagename}'.format(**options)
 
-    print '===> Run container: {0}'.format(docker_cmd)
+    print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     rc = subprocess.call(docker_cmd, shell=True)
     if rc != 0: exit(rc)
 
@@ -252,9 +242,7 @@ def show(args, config):
         print '     {0:12} -> {1}'.format(k, v)
 
 def generate(args, config):
-    release = generate_release(config['git'])
     generate_dockerfile(config['dockerfile'], config['spec'])
-    generate_entrypoint(config['entrypoint'], config['spec'], release)
 
 
 ### main
@@ -262,7 +250,7 @@ def main():
     """Main function"""
     # parse argumets, load config
     args = parse_args()
-    config = load_config(args.config, args.section)
+    config = load_config(args.config, args.section.replace('/',''))
     
     # debug mode
     if args.debug:

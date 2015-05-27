@@ -1,7 +1,0 @@
-#!/bin/sh -x
-# Workdir: /home/builder/rpmbuild
-
-# Download sources
-spectool -g -R SPECS/{spec}
-# Build rpm package
-rpmbuild --define 'release {release}' -ba SPECS/{spec}
