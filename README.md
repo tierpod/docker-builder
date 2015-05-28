@@ -1,7 +1,12 @@
 # Компиляция rpm пакета внутри docker контейнера
 
 __Прототип__, попытка сделать скрипт для компиляции rpm пакeтов внутри docker
-контейнера.
+контейнера. Все действия производятся внутри временного каталога build-env,
+в котором создаётся стандартная иерархия для rpmbuild. Она подключается в
+контейнер как volume. Готовые rpm-пакеты можно забрать в:
+
+* build-env/RPMS/
+* build-env/SRPMS/
 
 
 ## Зависимости
@@ -28,10 +33,10 @@ project
 ├── docker-rpmbuilder.ini
 └── packaging
     ├── Dockerfile.template
-    ├── entrypoint.sh.template
+    ├── entrypoint.sh
     └── rpmbuild
         └── SPECS
-            └── default.spec
+            └── project.spec
 
 $ docker-rpmbuilder.py --help
 Build rpm inside docker image
@@ -82,7 +87,7 @@ default_config = {
     # имя шаблона Dockerfile
     'dockerfile' : 'Dockerfile.template',
     # имя шаблона entrypoint.sh
-    'entrypoint': 'entrypoint.sh.template',
+    'entrypoint': 'entrypoint.sh',
     # сгенерировать release из версии git commit?
     'git': False,
     # имя docker image-а, в котором будет происходить компиляция
@@ -96,9 +101,7 @@ default_config = {
 }
 ```
 
-## Шаблоны
-
-### Dockerfile.template
+## Dockerfile.template
 
 Шаблон для генерации Dockerfile, в процессе generate заменяются:
 
@@ -108,10 +111,11 @@ default_config = {
 * {spec} - для копирования временного spec-файла в /tmp, чтобы установить
   зависимости с помощью yum-builddep
 
-### entrypoint.sh.template
+## entrypoint.sh
 
-Шаблон для генирации entrypoint.sh, выполняется внутри контейнера (CMD в Dockerfile).
+entrypoint.sh, выполняется внутри контейнера (CMD в Dockerfile). Использует следующие
+переменные окружения:
 
-* {spec} - имя spec-файла, берётся из файла конфигурации,
-* {release} - дополнительное поле, которое может присутсвовать в spec-файле (полезно
+* SPEC - имя spec-файла, берётся из файла конфигурации,
+* RELEASE - дополнительное поле, которое может присутсвовать в spec-файле (полезно
   для добавления версии из гита, или BUILD_NUMBER из jenkins-а).

@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-__version__ = '0.3git'
+__version__ = '0.3'
 
 # main
 def parse_args():
