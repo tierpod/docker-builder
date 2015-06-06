@@ -1,28 +1,27 @@
-FROM centos:latest
+FROM ubuntu:trusty
 MAINTAINER Pavel Podkorytov <pod.pavel@gmail.com>
 
 ENV USERID={userid}
 ENV GROUPID={groupid}
-ENV SPEC={spec}
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN echo 'APT::Install-Recommends "false";' > /etc/apt/apt.conf && \
+    echo 'APT::Install-Suggests "false";' >> /etc/apt/apt.conf
 
 # Install main dependencies
-RUN yum install -y epel-release rpmdevtools make yum-utils && \
-    yum clean all
+RUN apt-get update && \
+    apt-get install -y build-essential fakeroot dpkg-dev debhelper && \
+    apt-get clean
 
 # Create builder group and user
 RUN groupadd -g $GROUPID builder && \
     useradd -m -s /bin/bash -u $USERID -g $GROUPID builder
-
-# Install dependencies from spec-file
-ADD ["rpmbuild/SPECS/$SPEC", "/tmp/"]
-RUN yum-builddep -y /tmp/$SPEC
 
 ADD ["entrypoint.sh", "/entrypoint.sh"]
 RUN chmod +x /entrypoint.sh
 
 # Setup user-specific settings
 USER builder
-RUN rpmdev-setuptree
 
-WORKDIR /home/builder/rpmbuild
+WORKDIR /home/builder/build
 CMD /entrypoint.sh

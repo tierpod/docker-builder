@@ -1,8 +1,9 @@
 #!/bin/sh -x
-# Workdir: /home/builder/rpmbuild
+# Workdir: /home/builder/build
 
 if [ -n "$SPEC" ] && [ -n "$RELEASE" ]; then
 	# Download source
+	if [ -d 'SOURCES' ] && mkdir SOURCES
 	spectool -g -R SPECS/$SPEC
 	# Build rpm package
 	rpmbuild --define "release $RELEASE" -ba SPECS/$SPEC

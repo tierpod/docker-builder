@@ -1,12 +1,17 @@
-# Компиляция rpm пакета внутри docker контейнера
+# docker-builder
 
-__Прототип__, попытка сделать скрипт для компиляции rpm пакeтов внутри docker
-контейнера. Все действия производятся внутри временного каталога build-env,
-в котором создаётся стандартная иерархия для rpmbuild. Она подключается в
-контейнер как volume. Готовые rpm-пакеты можно забрать в:
+__Прототип__. Скрипт для компиляции софта и сборки rpm/deb пакeтов внутри
+docker контейнера. Все действия производятся внутри временного каталога
+build-env, в котором нужно создать стандартную иерархию (по-минимуму):
+
+* для rpm: rpmbuild/{SOURCES,SPECS}
+* для deb: debian/DEBIAN/{control,changelog}
+
+build-env подключается в контейнер как volume. Готовые пакеты можно забрать в:
 
 * build-env/RPMS/
 * build-env/SRPMS/
+* build-env/DEBS/
 
 
 ## Зависимости
@@ -17,44 +22,37 @@ __Прототип__, попытка сделать скрипт для комп
 
 ## Установка
 
-Исполняемый bin/docker-rpmbuilder.py положить куда-нибудь в PATH, либо запускать из
-любой директории. В директорию проекта, который нужно скомпилировать, положить:
-
-* docker-rpmbuilder.ini - файл настроек,
-* ${workdir}/Dockerfile.template - шаблон для генерации Dockerfile,
-* ${workdir}/rpmbuild/SPECS/file.spec - spec-файл,
-* ${workdir}/rpmbuild/SOURCES/ - дополнительные файлы, патчи и прочее.
+* Исполняемый bin/docker-builder.py положить куда-нибудь в PATH.
+* Создать иерархию с нужными метаданными:
+  * docker-builder.ini - файл настроек  
+  * для rpm:
+    * ${workdir}/Dockerfile.template - шаблон для генерации Dockerfile,
+    * ${workdir}/rpmbuild/SPECS/file.spec - spec-файл,
+    * ${workdir}/rpmbuild/SOURCES/ - дополнительные файлы, патчи и прочее.
+  * для deb:
+    * ${workdir}/debbuild/debian/DEBIAN/{control,changelog} - метаданные для 
+	  сборки deb пакета
+	* ${workdir}/debbuild/debian/ - бинарные файлы программы
 
 
 ## Использование
 
 ```
-project
-├── docker-rpmbuilder.ini
-└── packaging
-    ├── Dockerfile.template
-    ├── entrypoint.sh
-    └── rpmbuild
-        └── SPECS
-            └── project.spec
-
-$ docker-rpmbuilder.py --help
-Build rpm inside docker image
+Build package inside docker container
 
 positional arguments:
   {image,package,shell,generate,clear,show}
     image               Build docker image
-    package             Build rpm package inside docker container
+    package             Build package inside docker container
     shell               Run interactive shell inside docker container
-    generate            Generate and write files to disk [Dockerfile,
-                        entrypoint.sh]
+    generate            Generate and write Dockerfile files to disk
     clear               Clear temporary files
     show                Show configuration and exit
 
 optional arguments:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
-                        Config file [default: docker-rpmbuilder.ini]
+                        Config file [default: docker-builder.ini]
   -d, --debug           Print more debug messages
   -s SECTION, --section SECTION
                         Switch between config sections [default: default]
@@ -66,19 +64,19 @@ jenkins-slave с docker-ом):
 ```
 # build
 cd project/
-docker-rpmbuilder.py image
-docker-rpmbuilder.py package
+docker-builder.py image
+docker-builder.py package
 ```
 
 
-## docker-rpmbuilder.py
+## docker-builder.py
 
-Считывает переменные окружения:
+Использует переменные окружения:
 
 * BUILD_NUMBER - добавляет номер сборки в версию пакета, удобно в связке с
   jenkins.
 
-## docker-rpmbuilder.ini
+## docker-builder.ini
 
 Стандартные параметры:
 
@@ -95,7 +93,7 @@ default_config = {
     # команда для запуска на хосте ДО компиляции
     'prepare_cmd': None,
     # имя spec-файла
-    'spec': 'default.spec',
+    'spec': None,
     # рабочая директория
     'workdir': 'packaging',
 }
@@ -113,8 +111,8 @@ default_config = {
 
 ## entrypoint.sh
 
-entrypoint.sh, выполняется внутри контейнера (CMD в Dockerfile). Использует следующие
-переменные окружения:
+entrypoint.sh, выполняется внутри контейнера (CMD в Dockerfile). Использует
+следующие переменные окружения:
 
 * SPEC - имя spec-файла, берётся из файла конфигурации,
 * RELEASE - дополнительное поле, которое может присутсвовать в spec-файле (полезно

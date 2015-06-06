@@ -8,13 +8,13 @@ import shutil
 import subprocess
 import sys
 
-__version__ = '0.3'
+__version__ = '0.4pre'
 
 # main
 def parse_args():
-    parser = argparse.ArgumentParser(description='Build rpm inside docker image')
-    parser.add_argument('-c', '--config', default='docker-rpmbuilder.ini',
-        help='Config file [default: docker-rpmbuilder.ini]')
+    parser = argparse.ArgumentParser(description='Build package inside docker container')
+    parser.add_argument('-c', '--config', default='docker-builder.ini',
+        help='Config file [default: docker-builder.ini]')
     parser.add_argument('-d', '--debug', action='store_true',
         help='Print more debug messages')
     parser.add_argument('-s', '--section', default='default',
@@ -28,7 +28,7 @@ def parse_args():
 
     # build rpm package inside docker image
     parser_package = subparsers.add_parser('package',
-        help='Build rpm package inside docker container')
+        help='Build package inside docker container')
     parser_package.add_argument('-r', '--remove', action='store_true',
         help='Clear temporary files before building package')
     parser_package.set_defaults(func=package)
@@ -113,13 +113,11 @@ def generate_release(git):
         return buildnumber
 
 def create_tmpdir():
-    """Create temporary working directory from rpmbuild"""
+    """Create temporary working directory from build"""
     print '===> Create temporary directory tree inside "build-env"'
     if not os.path.exists('build-env'):
-        shutil.copytree('rpmbuild', 'build-env')
-    # Create SOURCES directory for spectool
-    if not os.path.exists('build-env/SOURCES'):
-        os.mkdir('build-env/SOURCES')
+        if os.path.exists('rpmbuild'): shutil.copytree('rpmbuild', 'build-env')
+        if os.path.exists('debbuild'): shutil.copytree('debbuild', 'build-env')
 
 def change_directory(workdir):
     """Change directory to workdir"""
@@ -130,7 +128,7 @@ def change_directory(workdir):
     os.chdir(workdir)
 
 def load_config(filename, section):
-    """Load and verify docker-rpmbuilder.ini"""
+    """Load and verify docker-builder.ini"""
     if not os.path.exists(filename):
         print 'Error: "{0}" does not exist'.format(filename)
         sys.exit(3)
@@ -139,7 +137,7 @@ def load_config(filename, section):
         'git': False,
         'imagename': 'builder-example',
         'prepare_cmd': None,
-        'spec': 'default.spec',
+        'spec': None,
         'workdir': 'packaging',
         'dockerfile': 'Dockerfile.template',
         'entrypoint': 'entrypoint.sh',
@@ -190,7 +188,7 @@ def shell(args, config):
         'spec': config['spec'],
         'imagename': config['imagename'],
     }
-    docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/rpmbuild \
+    docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/build \
         --entrypoint=/bin/bash \
         -e RELEASE={release} -e SPEC={spec} -t {imagename}'.format(**options)
 
@@ -218,7 +216,7 @@ def package(args, config):
         'spec': config['spec'],
         'imagename': config['imagename'],
     }
-    docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/rpmbuild \
+    docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/build \
         -e RELEASE={release} -e SPEC={spec} -t {imagename}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
@@ -248,7 +246,11 @@ def generate(args, config):
 ### main
 def main():
     """Main function"""
-    # parse argumets, load config
+    # reopen stdout file descriptor with write mode
+    # and 0 as the buffer size (unbuffered)
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+
+    #parse argumets, load config
     args = parse_args()
     config = load_config(args.config, args.section.replace('/',''))
     

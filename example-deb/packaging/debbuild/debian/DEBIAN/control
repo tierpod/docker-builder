@@ -1,0 +1,6 @@
+Package: example
+Version: 1.0-1
+Section: misc
+Architecture: all
+Maintainer: Pavel Podkorytov <pod.pavel@gmail.com>
+Description: Example script
