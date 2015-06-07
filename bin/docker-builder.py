@@ -135,10 +135,10 @@ def load_config(filename, section):
 
     default_config = {
         'git': False,
-        'imagename': 'builder-example',
+        'image': 'builder-example',
         'prepare_cmd': None,
         'spec': None,
-        'workdir': 'packaging',
+        'workdir': None,
         'dockerfile': 'Dockerfile.template',
         'entrypoint': 'entrypoint.sh',
     }
@@ -149,7 +149,7 @@ def load_config(filename, section):
     config = {}
     if config_file.has_section(section):
         # get string options
-        config['imagename'] = config_file.get(section, 'imagename')
+        config['image'] = config_file.get(section, 'image')
         config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
         config['spec'] = config_file.get(section, 'spec')
         config['workdir'] = config_file.get(section, 'workdir')
@@ -179,27 +179,27 @@ def clear(args, config):
 
 def shell(args, config):
     """Run docker interactive shell"""
-    print '===> Run docker interactive shell from image: {0}'.format(config['imagename'])
+    print '===> Run docker interactive shell from image: {0}'.format(config['image'])
     release = generate_release(config['git'])
     create_tmpdir()
 
     options = {
         'release': release,
         'spec': config['spec'],
-        'imagename': config['imagename'],
+        'image': config['image'],
     }
     docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/build \
         --entrypoint=/bin/bash \
-        -e RELEASE={release} -e SPEC={spec} -t {imagename}'.format(**options)
+        -e RELEASE={release} -e SPEC={spec} -t {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     rc = subprocess.call(docker_cmd, shell=True)
     if rc != 0: exit(rc)
 
 def package(args, config):
-    """Build rpm package inside docker container"""
+    """Build package inside docker container"""
     release = generate_release(config['git'])
-    print '===> Build rpm package, release: {0}'.format(release)
+    print '===> Build  package, release: {0}'.format(release)
 
     # prepare actions
     if args.remove:
@@ -214,10 +214,10 @@ def package(args, config):
     options = {
         'release': release,
         'spec': config['spec'],
-        'imagename': config['imagename'],
+        'image': config['image'],
     }
     docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/build \
-        -e RELEASE={release} -e SPEC={spec} -t {imagename}'.format(**options)
+        -e RELEASE={release} -e SPEC={spec} -t {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     rc = subprocess.call(docker_cmd, shell=True)
@@ -227,11 +227,11 @@ def image(args, config):
     """Build docker image"""
     buildnumber = generate_buildnumber()
     generate(args, config)
-    print '===> Build docker image {0}:{1}'.format(config['imagename'], buildnumber)
-    rc = subprocess.call('docker build -t {0} .'.format(config['imagename']), shell=True)
+    print '===> Build docker image {0}:{1}'.format(config['image'], buildnumber)
+    rc = subprocess.call('docker build -t {0} .'.format(config['image']), shell=True)
     if rc != 0: exit(rc)
     if buildnumber != '0':
-        subprocess.call('docker tag {0}:latest {0}:{1}'.format(config['imagename'], buildnumber),
+        subprocess.call('docker tag {0}:latest {0}:{1}'.format(config['image'], buildnumber),
             shell=True)
 
 def show(args, config):
@@ -263,7 +263,7 @@ def main():
         print '-----'
 
     # ignore change directory for some functions
-    if args.func.__name__ not in ('show'):
+    if config['workdir'] and args.func.__name__ not in ('show'):
         change_directory(config['workdir'])
 
     args.func(args, config)
