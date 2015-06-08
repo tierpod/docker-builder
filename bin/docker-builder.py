@@ -136,7 +136,7 @@ def load_config(filename, section):
     default_config = {
         'git': False,
         'image': 'builder',
-        'prepare_cmd': None,
+        'prepare': None,
         'spec': None,
         'workdir': None,
         'dockerfile': 'Dockerfile.template',
@@ -150,7 +150,7 @@ def load_config(filename, section):
     if config_file.has_section(section):
         # get string options
         config['image'] = config_file.get(section, 'image')
-        config['prepare_cmd'] = config_file.get(section, 'prepare_cmd')
+        config['prepare'] = config_file.get(section, 'prepare')
         config['spec'] = config_file.get(section, 'spec')
         config['workdir'] = config_file.get(section, 'workdir')
         config['dockerfile'] = config_file.get(section, 'dockerfile')
@@ -206,9 +206,9 @@ def package(args, config):
         clear(args, config)
 
     create_tmpdir()
-    if config['prepare_cmd']:
-        print '===> Run prepare command: {0}'.format(config['prepare_cmd'])
-        rc = subprocess.call(config['prepare_cmd'], shell=True)
+    if config['prepare']:
+        print '===> Run prepare script: {0}'.format(config['prepare'])
+        rc = subprocess.call(config['prepare'], shell=True)
         if rc != 0: exit(rc)
 
     options = {
