@@ -135,7 +135,7 @@ def load_config(filename, section):
 
     default_config = {
         'git': False,
-        'image': 'builder-example',
+        'image': 'builder',
         'prepare_cmd': None,
         'spec': None,
         'workdir': None,
