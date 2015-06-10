@@ -25,8 +25,8 @@ build-env подключается в контейнер как volume. Гото
 * Исполняемый bin/docker-builder.py положить куда-нибудь в PATH.
 * Создать иерархию с нужными метаданными:
   * docker-builder.ini - файл настроек  
+  * ${workdir}/Dockerfile.template - шаблон для генерации Dockerfile,
   * для rpm:
-    * ${workdir}/Dockerfile.template - шаблон для генерации Dockerfile,
     * ${workdir}/rpmbuild/SPECS/file.spec - spec-файл,
     * ${workdir}/rpmbuild/SOURCES/ - дополнительные файлы, патчи и прочее.
   * для deb:
@@ -91,11 +91,11 @@ default_config = {
     # имя docker image-а, в котором будет происходить компиляция
     'imagename': 'builder-example',
     # команда для запуска на хосте ДО компиляции
-    'prepare_cmd': None,
+    'prepare': None,
     # имя spec-файла
     'spec': None,
     # рабочая директория
-    'workdir': 'packaging',
+    'workdir': None,
 }
 ```
 
