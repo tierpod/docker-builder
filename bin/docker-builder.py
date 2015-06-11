@@ -8,11 +8,13 @@ import shutil
 import subprocess
 import sys
 
-__version__ = '0.4pre'
+__version__ = '0.4'
 
 # main
 def parse_args():
-    parser = argparse.ArgumentParser(description='Build package inside docker container')
+    parser = argparse.ArgumentParser(
+        description='Build package inside docker container',
+        epilog='Source: https://github.com/tierpod/docker-builder')
     parser.add_argument('-c', '--config', default='docker-builder.ini',
         help='Config file [default: docker-builder.ini]')
     parser.add_argument('-d', '--debug', action='store_true',
@@ -26,29 +28,29 @@ def parse_args():
     parser_image = subparsers.add_parser('image', help='Build docker image')
     parser_image.set_defaults(func=image)
 
-    # build rpm package inside docker image
+    # build package inside docker image
     parser_package = subparsers.add_parser('package',
         help='Build package inside docker container')
     parser_package.add_argument('-r', '--remove', action='store_true',
         help='Clear temporary files before building package')
     parser_package.set_defaults(func=package)
 
-    # shell
+    # open shell
     parser_shell = subparsers.add_parser('shell',
         help='Run interactive shell inside docker container')
     parser_shell.set_defaults(func=shell)
 
-    # generate
+    # generate Dockerfile
     parser_generate = subparsers.add_parser('generate',
         help='Generate and write Dockerfile files to disk')
     parser_generate.set_defaults(func=generate)
 
-    # clear
+    # clear temporary files
     parser_clear = subparsers.add_parser('clear',
             help='Clear temporary files')
     parser_clear.set_defaults(func=clear)
 
-    # show
+    # show current config
     parser_show = subparsers.add_parser('show',
         help='Show configuration and exit')
     parser_show.set_defaults(func=show)
@@ -134,13 +136,13 @@ def load_config(filename, section):
         sys.exit(3)
 
     default_config = {
+        'dockerfile': 'Dockerfile.template',
+        'entrypoint': 'entrypoint.sh',
         'git': False,
         'image': 'builder',
         'prepare': None,
         'spec': None,
         'workdir': None,
-        'dockerfile': 'Dockerfile.template',
-        'entrypoint': 'entrypoint.sh',
     }
     config_file = ConfigParser.SafeConfigParser(default_config)
     config_file.read(filename)
@@ -149,12 +151,12 @@ def load_config(filename, section):
     config = {}
     if config_file.has_section(section):
         # get string options
+        config['dockerfile'] = config_file.get(section, 'dockerfile')
+        config['entrypoint'] = config_file.get(section, 'entrypoint')
         config['image'] = config_file.get(section, 'image')
         config['prepare'] = config_file.get(section, 'prepare')
         config['spec'] = config_file.get(section, 'spec')
         config['workdir'] = config_file.get(section, 'workdir')
-        config['dockerfile'] = config_file.get(section, 'dockerfile')
-        config['entrypoint'] = config_file.get(section, 'entrypoint')
         # get boolean option
         try:
             config['git'] = config_file.getboolean(section, 'git')

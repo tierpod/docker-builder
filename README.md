@@ -68,6 +68,7 @@ docker-builder.py image
 docker-builder.py package
 ```
 
+При этом, желательно разделить на 2 этапа, а не выполнять в одной задаче.
 
 ## docker-builder.py
 
@@ -89,12 +90,12 @@ default_config = {
     # сгенерировать release из версии git commit?
     'git': False,
     # имя docker image-а, в котором будет происходить компиляция
-    'imagename': 'builder-example',
-    # команда для запуска на хосте ДО компиляции
+    'image': 'builder',
+    # команда или скрипт для запуска на хосте ДО запуска конейнера
     'prepare': None,
-    # имя spec-файла
+    # имя spec-файла, только для rpm
     'spec': None,
-    # рабочая директория
+    # рабочая директория, по-умолчанию, текущая
     'workdir': None,
 }
 ```
