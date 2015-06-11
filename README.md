@@ -13,6 +13,9 @@ build-env подключается в контейнер как volume. Гото
 * build-env/SRPMS/
 * build-env/DEBS/
 
+Примеры:
+
+* [rpmbuilder](https://github.com/tierpod/docker-rpmbuilder-images)
 
 ## Зависимости
 
