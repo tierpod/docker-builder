@@ -67,7 +67,7 @@ def get_usergid():
     """Get current group id"""
     return os.getgid()
 
-def generate_dockerfile(template, spec):
+def generate_dockerfile(template, target):
     """Generate Dockerfile from template"""
     userid = get_userid()
     groupid = get_usergid()
@@ -79,7 +79,7 @@ def generate_dockerfile(template, spec):
     with open(template, 'r') as f:
         content = f.read()
 
-    print '     userid -> {userid}, groupid -> {groupid}, spec -> {spec}'.format(**locals())
+    print '     userid -> {userid}, groupid -> {groupid}, target -> {target}'.format(**locals())
     _content = content.format(**locals())
     print _content
 
@@ -141,7 +141,7 @@ def load_config(filename, section):
         'git': False,
         'image': 'builder',
         'prepare': None,
-        'spec': None,
+        'target': None,
         'workdir': None,
     }
     config_file = ConfigParser.SafeConfigParser(default_config)
@@ -155,7 +155,7 @@ def load_config(filename, section):
         config['entrypoint'] = config_file.get(section, 'entrypoint')
         config['image'] = config_file.get(section, 'image')
         config['prepare'] = config_file.get(section, 'prepare')
-        config['spec'] = config_file.get(section, 'spec')
+        config['target'] = config_file.get(section, 'target')
         config['workdir'] = config_file.get(section, 'workdir')
         # get boolean option
         try:
@@ -187,12 +187,12 @@ def shell(args, config):
 
     options = {
         'release': release,
-        'spec': config['spec'],
+        'target': config['target'],
         'image': config['image'],
     }
     docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/build \
         --entrypoint=/bin/bash \
-        -e RELEASE={release} -e SPEC={spec} -t {image}'.format(**options)
+        -e RELEASE={release} -e SPEC={target} -t {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     rc = subprocess.call(docker_cmd, shell=True)
@@ -215,11 +215,11 @@ def package(args, config):
 
     options = {
         'release': release,
-        'spec': config['spec'],
+        'target': config['target'],
         'image': config['image'],
     }
     docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/build \
-        -e RELEASE={release} -e SPEC={spec} -t {image}'.format(**options)
+        -e RELEASE={release} -e SPEC={target} -t {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     rc = subprocess.call(docker_cmd, shell=True)
@@ -242,7 +242,7 @@ def show(args, config):
         print '     {0:12} -> {1}'.format(k, v)
 
 def generate(args, config):
-    generate_dockerfile(config['dockerfile'], config['spec'])
+    generate_dockerfile(config['dockerfile'], config['target'])
 
 
 ### main
