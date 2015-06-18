@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-__version__ = '0.4'
+__version__ = '0.5git'
 
 # main
 def parse_args():
@@ -99,7 +99,7 @@ def generate_buildnumber():
 def generate_commit():
     """Generate short commit version"""
     try:
-        commit = subprocess.check_output('git rev-parse HEAD', shell=True)[0:7]
+        commit = subprocess.check_output('git rev-parse --short HEAD', shell=True).rstrip()
     except:
         print 'Error: unable to get git commit version'
         sys.exit(3)
@@ -110,16 +110,14 @@ def generate_release(git):
     buildnumber = generate_buildnumber()
     if git:
         commit = generate_commit()
-        return '{buildnumber}.git{commit}'.format(**locals())
-    else:
-        return buildnumber
+        buildnumber = '{buildnumber}.git{commit}'.format(**locals())
+    return buildnumber
 
 def create_tmpdir():
     """Create temporary working directory from build"""
-    print '===> Create temporary directory tree inside "build-env"'
-    if not os.path.exists('build-env'):
-        if os.path.exists('rpmbuild'): shutil.copytree('rpmbuild', 'build-env')
-        if os.path.exists('debbuild'): shutil.copytree('debbuild', 'build-env')
+    if not os.path.exists('build-env') and os.path.exists('volume'):
+        print '===> Copy "volume" to temporary "build-env" directory'
+        shutil.copytree('volume', 'build-env')
 
 def change_directory(workdir):
     """Change directory to workdir"""
@@ -192,11 +190,10 @@ def shell(args, config):
     }
     docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/build \
         --entrypoint=/bin/bash \
-        -e RELEASE={release} -e SPEC={target} -t {image}'.format(**options)
+        -e RELEASE={release} -e TARGET={target} {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
-    rc = subprocess.call(docker_cmd, shell=True)
-    if rc != 0: exit(rc)
+    subprocess.call(docker_cmd, shell=True)
 
 def package(args, config):
     """Build package inside docker container"""
@@ -210,8 +207,7 @@ def package(args, config):
     create_tmpdir()
     if config['prepare']:
         print '===> Run prepare script: {0}'.format(config['prepare'])
-        rc = subprocess.call(config['prepare'], shell=True)
-        if rc != 0: exit(rc)
+        subprocess.check_call(config['prepare'], shell=True)
 
     options = {
         'release': release,
@@ -219,21 +215,20 @@ def package(args, config):
         'image': config['image'],
     }
     docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/build \
-        -e RELEASE={release} -e SPEC={target} -t {image}'.format(**options)
+        -e RELEASE={release} -e TARGET={target} {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
-    rc = subprocess.call(docker_cmd, shell=True)
-    if rc != 0: exit(rc)
+    subprocess.check_call(docker_cmd, shell=True)
 
 def image(args, config):
     """Build docker image"""
     buildnumber = generate_buildnumber()
     generate(args, config)
     print '===> Build docker image {0}:{1}'.format(config['image'], buildnumber)
-    rc = subprocess.call('docker build -t {0} .'.format(config['image']), shell=True)
+    rc = subprocess.check_call('docker build -t {0} .'.format(config['image']), shell=True)
     if rc != 0: exit(rc)
     if buildnumber != '0':
-        subprocess.call('docker tag {0}:latest {0}:{1}'.format(config['image'], buildnumber),
+        subprocess.check_call('docker tag {0}:latest {0}:{1}'.format(config['image'], buildnumber),
             shell=True)
 
 def show(args, config):
