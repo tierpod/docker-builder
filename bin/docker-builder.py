@@ -188,9 +188,9 @@ def shell(args, config):
         'target': config['target'],
         'image': config['image'],
     }
-    docker_cmd = 'docker run --rm -it -v $(pwd)/build-env/:/home/builder/build \
-        --entrypoint=/bin/bash \
-        -e RELEASE={release} -e TARGET={target} {image}'.format(**options)
+    docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/build \
+        -e RELEASE={release} -e TARGET={target} \
+        -it --entrypoint=/bin/bash {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     subprocess.call(docker_cmd, shell=True)
@@ -215,7 +215,8 @@ def package(args, config):
         'image': config['image'],
     }
     docker_cmd = 'docker run --rm -v $(pwd)/build-env/:/home/builder/build \
-        -e RELEASE={release} -e TARGET={target} {image}'.format(**options)
+        -e RELEASE={release} -e TARGET={target} \
+        {image}'.format(**options)
 
     print '===> Run container: {0}'.format(' '.join(docker_cmd.split()))
     subprocess.check_call(docker_cmd, shell=True)
