@@ -1,13 +1,13 @@
 #!/bin/sh -x
 # Workdir: /home/builder/build
 
-if [ -n "$SPEC" ] && [ -n "$RELEASE" ]; then
+if [ -n "$TARGET" ] && [ -n "$RELEASE" ]; then
 	# Download source
-	if [ -d 'SOURCES' ] && mkdir SOURCES
-	spectool -g -R SPECS/$SPEC
+	if [ -d 'SOURCES' ] || mkdir SOURCES
+	spectool -g -R SPECS/$TARGET
 	# Build rpm package
-	rpmbuild --define "release $RELEASE" -ba SPECS/$SPEC
+	rpmbuild --define "release $RELEASE" -ba SPECS/$TARGET
 else
-	echo 'Usage: SPEC=default.spec RELEASE=0 entrypoint.sh'
+	echo 'Usage: TARGET=project RELEASE=0 entrypoint.sh'
 	exit 1
 fi
